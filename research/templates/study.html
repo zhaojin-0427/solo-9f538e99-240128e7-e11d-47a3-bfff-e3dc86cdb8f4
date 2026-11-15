@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}{{ study.name }} · 科研就诊明细替码{% endblock %}
+
+{% block content %}
+{{ flash_messages(messages) }}
+
+<p><a href="{{ url_for('index') }}">← 返回上传</a></p>
+
+<section class="card">
+  <h1>{{ study.name }}</h1>
+  <dl class="facts">
+    <dt>建档时间 (UTC)</dt><dd class="mono">{{ study.created_at }}</dd>
+    <dt>已分配替码</dt><dd>{{ study.patients }}</dd>
+    <dt>结果批次</dt><dd>{{ study.batches }}</dd>
+  </dl>
+  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="study" value="{{ study.name }}">
+    <label for="file">向该研究追加一批 CSV</label>
+    <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+    <button type="submit">上传并生成替码文件</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>该研究的批次</h2>
+  {% if batches %}
+  <table>
+    <thead>
+      <tr><th>批次</th><th class="num">行数</th><th class="num">大小</th><th>生成时间 (UTC)</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td class="mono">#{{ b.batch_id }}</td>
+        <td class="num">{{ b.rows }}</td>
+        <td class="num">{{ b.bytes_out | bytes }}</td>
+        <td class="mono">{{ b.created_at }}</td>
+        <td>
+          <a class="btn small" href="{{ url_for('batch_detail', batch_id=b.batch_id) }}">详情</a>
+          <a class="btn small ghost" href="{{ url_for('download', name=b.result_file) }}">下载</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">尚无批次。</p>
+  {% endif %}
+</section>
+{% endblock %}

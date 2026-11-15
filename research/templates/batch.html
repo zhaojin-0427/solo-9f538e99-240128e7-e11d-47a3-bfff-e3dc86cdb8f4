@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}批次 #{{ batch.batch_id }} · 科研就诊明细替码{% endblock %}
+
+{% block content %}
+{{ flash_messages(messages) }}
+
+<p><a href="{{ url_for('batches') }}">← 结果记录</a></p>
+
+<section class="card">
+  <h1>批次 #{{ batch.batch_id }}</h1>
+  <dl class="facts">
+    <dt>研究项目</dt><dd>{{ batch.study_name }}</dd>
+    <dt>生成时间 (UTC)</dt><dd class="mono">{{ batch.created_at }}</dd>
+    <dt>数据行数</dt><dd>{{ batch.rows }}</dd>
+    <dt>输入大小</dt><dd>{{ batch.bytes_in | bytes }}</dd>
+    <dt>结果大小</dt><dd>{{ batch.bytes_out | bytes }}</dd>
+    <dt>结果 SHA-256</dt><dd class="mono break">{{ batch.sha256 }}</dd>
+  </dl>
+  <p>
+    <a class="btn" href="{{ url_for('download', name=batch.result_file) }}">下载替码 CSV</a>
+  </p>
+  <p class="hint">结果文件保存在数据卷中；请通过本页链接下载，勿手工修改文件。</p>
+</section>
+
+{% if study %}
+<section class="card">
+  <h2>研究项目替码概况</h2>
+  <dl class="facts">
+    <dt>研究项目</dt><dd>{{ study.name }}</dd>
+    <dt>已分配替码</dt><dd>{{ study.patients }}</dd>
+    <dt>结果批次</dt><dd>{{ study.batches }}</dd>
+  </dl>
+  <p><a href="{{ url_for('study_detail', study_id=study.study_id) }}">该研究的全部批次 →</a></p>
+</section>
+{% endif %}
+{% endblock %}

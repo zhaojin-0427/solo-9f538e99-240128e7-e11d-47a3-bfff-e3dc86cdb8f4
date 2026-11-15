@@ -1,0 +1,42 @@
+services:
+  research:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: research-pseudonymiser:local
+    container_name: research-pseudonymiser
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATA_DIR: /data
+      PORT: "8000"
+      THREADS: "8"
+      # Upload spool files must live on disk (not tmpfs/anonymous memory), so a
+      # 256 MiB upload never competes with the 128 MiB memory limit.
+      TMPDIR: /data/tmp
+      # Optional: pin the keyed pseudonym secret instead of the key generated
+      # into the data volume on first start.  Must stay stable across restarts.
+      # PSEUDONYM_SECRET: "change-me-to-a-long-random-value"
+    volumes:
+      # ==== REQUIRED DATA VOLUME ====
+      # Holds registry.sqlite3 (the pseudonym table), secret.key and every
+      # published result CSV.
+      - research-data:/data
+    # Hard 128 MiB ceiling for the container, applying to the whole app.
+    mem_limit: 128m
+    memswap_limit: 128m
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  research-data:
+    name: research-data

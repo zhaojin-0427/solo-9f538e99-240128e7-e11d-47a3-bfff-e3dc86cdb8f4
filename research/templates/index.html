@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block content %}
+{{ flash_messages(messages) }}
+
+<section class="card">
+  <h1>上传就诊明细</h1>
+  <p class="hint">
+    文件须为 UTF-8 编码的 CSV，三列依次为<b>患者号</b>、<b>就诊 UTC 时间</b>、<b>诊断码</b>。
+    任一行三列缺值、字段超过 {{ MAX_FIELD_CHARS }} 个字符或时间非法，整批拒绝，不生成替码、不留可下载结果。
+    单个文件上限 {{ MAX_UPLOAD_BYTES | bytes }}。
+  </p>
+  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="stack">
+    <label for="study">研究项目</label>
+    <input id="study" name="study" list="study-names" required maxlength="100"
+           value="{{ study_value }}" placeholder="例如：2026 年糖尿病随访研究">
+    <datalist id="study-names">
+      {% for s in studies %}<option value="{{ s.name }}"></option>{% endfor %}
+    </datalist>
+    <p class="hint">名称相同即视为同一研究，替码跨批次复用；名称不同则独立分配替码。</p>
+
+    <label for="file">CSV 文件</label>
+    <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+
+    <button type="submit">上传并生成替码文件</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>研究项目（{{ studies | length }}）</h2>
+  {% if studies %}
+  <table>
+    <thead>
+      <tr><th>研究项目</th><th>建档时间 (UTC)</th><th class="num">患者数</th><th class="num">结果批次</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in studies %}
+      <tr>
+        <td><a href="{{ url_for('study_detail', study_id=s.study_id) }}">{{ s.name }}</a></td>
+        <td class="mono">{{ s.created_at }}</td>
+        <td class="num">{{ s.patients }}</td>
+        <td class="num">{{ s.batches }}</td>
+        <td><a class="btn small" href="{{ url_for('study_detail', study_id=s.study_id) }}">查看</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">尚无研究项目。上传第一个文件后即自动建档。</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>最近结果</h2>
+  {% if batches %}
+  <table>
+    <thead>
+      <tr><th>批次</th><th>研究项目</th><th class="num">行数</th><th class="num">大小</th><th>生成时间 (UTC)</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td class="mono">#{{ b.batch_id }}</td>
+        <td>{{ b.study }}</td>
+        <td class="num">{{ b.rows }}</td>
+        <td class="num">{{ b.bytes_out | bytes }}</td>
+        <td class="mono">{{ b.created_at }}</td>
+        <td><a class="btn small" href="{{ url_for('batch_detail', batch_id=b.batch_id) }}">详情</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><a href="{{ url_for('batches') }}">全部结果记录 →</a></p>
+  {% else %}
+  <p class="empty">尚无结果文件。</p>
+  {% endif %}
+</section>
+{% endblock %}

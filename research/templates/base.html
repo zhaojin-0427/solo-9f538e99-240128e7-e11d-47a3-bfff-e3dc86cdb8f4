@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}科研就诊明细替码{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">科研就诊明细替码</a>
+    <nav>
+      <a href="{{ url_for('index') }}">上传</a>
+      <a href="{{ url_for('batches') }}">结果记录</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    替码表保存在数据卷，同一研究内一位患者对应一个替码；不同研究独立分配。
+  </footer>
+</body>
+</html>

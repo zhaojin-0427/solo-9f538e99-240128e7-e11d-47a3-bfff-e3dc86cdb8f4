@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}结果记录 · 科研就诊明细替码{% endblock %}
+
+{% block content %}
+{{ flash_messages(messages) }}
+
+<section class="card">
+  <h1>结果记录</h1>
+  <form method="get" action="{{ url_for('batches') }}" class="inline">
+    <label for="study_id">按研究项目筛选</label>
+    <select id="study_id" name="study_id" onchange="this.form.submit()">
+      <option value="">全部</option>
+      {% for s in studies %}
+      <option value="{{ s.study_id }}" {% if selected == s.study_id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">筛选</button></noscript>
+  </form>
+
+  {% if batches %}
+  <table>
+    <thead>
+      <tr><th>批次</th><th>研究项目</th><th class="num">行数</th><th class="num">大小</th><th>生成时间 (UTC)</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td class="mono">#{{ b.batch_id }}</td>
+        <td>{{ b.study }}</td>
+        <td class="num">{{ b.rows }}</td>
+        <td class="num">{{ b.bytes_out | bytes }}</td>
+        <td class="mono">{{ b.created_at }}</td>
+        <td>
+          <a class="btn small" href="{{ url_for('batch_detail', batch_id=b.batch_id) }}">详情</a>
+          <a class="btn small ghost" href="{{ url_for('download', name=b.result_file) }}">下载</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">暂无结果记录。</p>
+  {% endif %}
+</section>
+{% endblock %}
