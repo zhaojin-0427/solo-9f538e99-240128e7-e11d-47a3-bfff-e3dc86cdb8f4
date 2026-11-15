@@ -133,3 +133,32 @@ tbody tr:hover { background: #f8fafd; }
 .inline { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
 .inline select { width: auto; min-width: 14rem; }
 .inline label { font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
+
+.checklist {
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  background: #fff;
+}
+.checklist label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 400;
+  font-size: 0.9rem;
+  padding: 0.2rem 0;
+  margin-top: 0;
+}
+.checklist input[type="checkbox"] { width: auto; }
+
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.badge-ok { background: var(--ok-bg); color: var(--ok-ink); }
+.badge-warn { background: #fdf3e3; color: #8a5a00; }

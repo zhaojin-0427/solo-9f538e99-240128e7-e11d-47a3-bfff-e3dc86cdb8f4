@@ -21,6 +21,7 @@ from flask import (
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from . import store
+from .analysis import AnalysisError, run_analysis
 from .pipeline import convert_upload
 from .store import ConflictError, StorageError
 from .validation import (
@@ -254,6 +255,42 @@ def create_app(settings: dict | None = None) -> Flask:
             download_name=download_name,
             conditional=True,
             max_age=0,
+        )
+
+    @app.route("/analysis", methods=["GET", "POST"])
+    def analysis():
+        conn = db()
+        studies = store.list_studies(conn)
+        result = None
+        error = None
+        checked: set[int] = set()
+        targets_value = ""
+        if request.method == "POST":
+            study_id = request.form.get("study_id", type=int)
+            batch_ids = request.form.getlist("batch_id", type=int)
+            targets_value = request.form.get("targets", "")
+            checked = set(batch_ids)
+            try:
+                result = run_analysis(conn, paths, study_id, batch_ids, targets_value)
+            except AnalysisError as exc:
+                error = str(exc)
+        else:
+            study_id = request.args.get("study_id", type=int)
+        batches = (
+            store.list_batches(conn, study_id=study_id, limit=500)
+            if study_id is not None
+            else []
+        )
+        return render_template(
+            "analysis.html",
+            studies=studies,
+            selected_study=study_id,
+            batches=batches,
+            checked=checked,
+            targets_value=targets_value,
+            result=result,
+            error=error,
+            messages=get_flashed_messages(with_categories=True),
         )
 
     @app.get("/healthz")

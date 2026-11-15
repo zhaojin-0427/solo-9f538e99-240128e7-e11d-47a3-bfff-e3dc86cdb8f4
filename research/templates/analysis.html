@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}病例-对照匹配 · 科研就诊明细替码{% endblock %}
+
+{% block content %}
+{{ flash_messages(messages) }}
+
+{% if error %}
+<ul class="flashes"><li class="flash flash-error">{{ error }}</li></ul>
+{% endif %}
+
+<section class="card">
+  <h1>病例-对照匹配分析</h1>
+  <p class="hint">
+    仅分析勾选的<b>已发布批次</b>的替码结果文件：新上传的批次只要不勾选就不会混入本次分析。
+    分析为只读操作，不改写任何原始数据。所选明细合计最多 500 行，病例、对照各最多 12 人，超限即拒绝。
+  </p>
+
+  <form method="get" action="{{ url_for('analysis') }}" class="inline">
+    <label for="study_id">研究项目</label>
+    <select id="study_id" name="study_id" onchange="this.form.submit()">
+      <option value="">请选择研究项目</option>
+      {% for s in studies %}
+      <option value="{{ s.study_id }}" {% if selected_study == s.study_id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">选择研究</button></noscript>
+  </form>
+
+  {% if selected_study is not none %}
+  <form method="post" action="{{ url_for('analysis') }}" class="stack">
+    <input type="hidden" name="study_id" value="{{ selected_study }}">
+
+    <label>已发布批次（勾选纳入分析的批次）</label>
+    {% if batches %}
+    <div class="checklist">
+      {% for b in batches %}
+      <label>
+        <input type="checkbox" name="batch_id" value="{{ b.batch_id }}"
+               {% if b.batch_id in checked %}checked{% endif %}>
+        <span>批次 #{{ b.batch_id }} · {{ b.rows }} 行 · <span class="mono">{{ b.created_at }}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">该研究暂无已发布批次，请先在「上传」页提交就诊明细。</p>
+    {% endif %}
+
+    <label for="targets">目标诊断码</label>
+    <input id="targets" name="targets" type="text" required maxlength="1000"
+           value="{{ targets_value }}" placeholder="例如：J18.9；多个用逗号分隔：J18.9, I10">
+    <p class="hint">与明细中的诊断码完全一致才算命中（区分大小写）；命中任一目标码即计为病例。</p>
+
+    {% if batches %}
+    <button type="submit">运行匹配分析</button>
+    {% endif %}
+  </form>
+  {% endif %}
+</section>
+
+{% if result %}
+<section class="card">
+  <h2>分析概要</h2>
+  <dl class="facts">
+    <dt>研究项目</dt><dd>{{ result.study_name }}</dd>
+    <dt>所选批次</dt><dd class="mono">{% for b in result.batch_ids %}#{{ b }}{{ ", " if not loop.last }}{% endfor %}</dd>
+    <dt>目标诊断码</dt><dd class="mono">{{ result.targets | join(", ") }}</dd>
+    <dt>分析明细行数</dt><dd>{{ result.total_rows }}</dd>
+    <dt>患者数（按替码合并）</dt><dd>{{ result.patient_count }}</dd>
+    <dt>病例 / 对照</dt><dd>{{ result.cases | length }} / {{ result.controls | length }}</dd>
+    <dt>配对数（最多）</dt><dd>{{ result.pairs | length }}</dd>
+    <dt>绝对日差总和（最小）</dt><dd>{{ result.total_day_diff }} 天</dd>
+  </dl>
+</section>
+
+<section class="card">
+  <h2>一组最优配对</h2>
+  {% if result.pairs %}
+  <table>
+    <thead>
+      <tr><th>病例替码</th><th>病例日期 (UTC)</th><th>对照替码</th><th>对照日期 (UTC)</th><th class="num">日差（天）</th></tr>
+    </thead>
+    <tbody>
+      {% for p in result.pairs %}
+      <tr>
+        <td class="mono">{{ p.case.code }}</td>
+        <td class="mono">{{ p.case.day.isoformat() }}</td>
+        <td class="mono">{{ p.control.code }}</td>
+        <td class="mono">{{ p.control.day.isoformat() }}</td>
+        <td class="num">{{ p.day_diff }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">没有可配对的病例-对照组合（日期相差 7 天内才可配对）。</p>
+  {% endif %}
+  {% if result.unmatched_cases %}
+  <p>未配对病例：
+    {% for m in result.unmatched_cases %}<span class="mono">{{ m.code }}</span>（{{ m.day.isoformat() }}）{{ ", " if not loop.last }}{% endfor %}
+  </p>
+  {% endif %}
+  {% if result.unmatched_controls %}
+  <p>未配对对照：
+    {% for m in result.unmatched_controls %}<span class="mono">{{ m.code }}</span>（{{ m.day.isoformat() }}）{{ ", " if not loop.last }}{% endfor %}
+  </p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>配对唯一性核查（逐病例）</h2>
+  <p class="hint">
+    以下列出每个病例在<b>所有</b>最优方案中可能配到的对照，以及是否可能在某些最优方案中未配对。
+    只有始终配给同一对照的病例才标记为「确定」。
+  </p>
+  {% if result.case_reports %}
+  <table>
+    <thead>
+      <tr><th>病例替码</th><th>病例日期 (UTC)</th><th>最优方案中可能的对照</th><th>可能未配对</th><th>结论</th></tr>
+    </thead>
+    <tbody>
+      {% for r in result.case_reports %}
+      <tr>
+        <td class="mono">{{ r.case.code }}</td>
+        <td class="mono">{{ r.case.day.isoformat() }}</td>
+        <td>
+          {% if r.possible %}
+            {% for m in r.possible %}<span class="mono">{{ m.code }}</span>（{{ m.day.isoformat() }}）{{ ", " if not loop.last }}{% endfor %}
+          {% else %}
+            <span class="empty">无可用对照</span>
+          {% endif %}
+        </td>
+        <td>{{ "是" if r.maybe_unpaired else "否" }}</td>
+        <td>
+          {% if r.certain %}<span class="badge badge-ok">确定</span>
+          {% else %}<span class="badge badge-warn">不确定</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">没有病例：所选明细中没有任何诊断码命中目标码。</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -98,8 +98,15 @@ def _days_in_month(year: int, month: int) -> int:
     return _MONTH_DAYS[month - 1]
 
 
-def validate_visit_utc(text: str) -> str:
-    """Return *text* unchanged when it denotes a valid UTC instant."""
+def parse_visit_utc(text: str):
+    """Parse a UTC timestamp into an aware ``datetime``.
+
+    Accepts exactly the forms :data:`_UTC_RE` allows (``Z`` / ``UTC`` /
+    ``+00:00`` suffix); every result carries ``tzinfo=utc`` so instants
+    compare correctly regardless of the original spelling.
+    """
+    from datetime import datetime, timezone
+
     m = _UTC_RE.match(text)
     if not m:
         raise ValueError("需要 ISO-8601 UTC 时间，例如 2024-05-01T09:30:00Z")
@@ -114,6 +121,15 @@ def validate_visit_utc(text: str) -> str:
         raise ValueError("日期不存在")
     if hour > 23 or minute > 59 or second > 59:
         raise ValueError("时间超出范围")
+    micros = int((m["f"] or "0").ljust(6, "0"))
+    return datetime(
+        year, month, day, hour, minute, second, micros, tzinfo=timezone.utc
+    )
+
+
+def validate_visit_utc(text: str) -> str:
+    """Return *text* unchanged when it denotes a valid UTC instant."""
+    parse_visit_utc(text)
     return text
 
 
@@ -164,6 +180,11 @@ def _looks_like_header(cells: list[str]) -> bool:
         and _norm_header(cells[1]) in _VISIT_HEADERS
         and _norm_header(cells[2]) in _DIAG_HEADERS
     )
+
+
+#: Public alias so the analysis reader can skip the optional header row that
+#: the converter passes through unchanged.
+looks_like_header = _looks_like_header
 
 
 # ---------------------------------------------------------------------------
